@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Download PingPoint — LAN ping, monitor, speed, and DNS tools for Android." />
+  <title>PingPoint</title>
+  <style>
+    :root {
+      --bg0: #05080f;
+      --bg1: #0a1628;
+      --cyan: #2ee6ff;
+      --cyan-dim: rgba(46, 230, 255, 0.18);
+      --text: #e8f4ff;
+      --muted: #8aa4c0;
+      --btn: #1ad4ef;
+      --btn-text: #031018;
+      --warn: #c9d7e8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46, 230, 255, 0.16), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(20, 80, 140, 0.35), transparent 50%),
+        linear-gradient(165deg, var(--bg0), var(--bg1) 55%, #06101c);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1.25rem 2.5rem;
+    }
+
+    main {
+      width: min(100%, 420px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.1rem;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .brand {
+      font-size: clamp(2rem, 8vw, 2.75rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      text-shadow: 0 0 28px rgba(46, 230, 255, 0.35);
+    }
+
+    .version {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 320px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px var(--cyan-dim),
+        0 18px 48px rgba(0, 0, 0, 0.45);
+      background: #02060c;
+    }
+
+    .hero img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .blurb {
+      font-size: 1rem;
+      line-height: 1.45;
+      color: var(--muted);
+      max-width: 34ch;
+    }
+
+    .download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 320px;
+      padding: 0.95rem 1.25rem;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #3ef0ff, var(--btn));
+      color: var(--btn-text);
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      box-shadow: 0 8px 28px rgba(46, 230, 255, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .download:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 16px rgba(46, 230, 255, 0.2);
+    }
+
+    .note {
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: var(--warn);
+      max-width: 36ch;
+      opacity: 0.9;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 class="brand">PingPoint</h1>
+    <p class="version">Version 1.0</p>
+    <div class="hero">
+      <img src="splash.png" alt="PingPoint neon radar splash" width="640" height="640" />
+    </div>
+    <p class="blurb">
+      Network diagnostics for your LAN — ping hosts, monitor devices, run speed checks, and look up DNS.
+    </p>
+    <a class="download" id="apk-link"
+       href="https://github.com/doorcountydrone/PingPoint/releases/latest/download/PingPoint-1.0.apk">
+      Download APK
+    </a>
+    <p class="note">
+      On Android, you may need to allow “Install unknown apps” for the browser you use to open this page.
+    </p>
+  </main>
+  <footer>PingPoint · NFC download</footer>
+</body>
+</html>
