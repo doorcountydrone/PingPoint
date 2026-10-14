@@ -1,6 +1,23 @@
 package com.pingpoint.net
 
 object AppVersion {
+    const val DISMISS_RESHOW_OPENS = 3
+
+    /**
+     * After Not now, the same update stays hidden until [opensSinceDismiss] reaches 3.
+     * A still-newer release always shows right away.
+     */
+    fun shouldOfferUpdate(
+        latest: String,
+        installed: String,
+        dismissed: String?,
+        opensSinceDismiss: Int,
+    ): Boolean {
+        if (!isNewer(latest, installed)) return false
+        if (dismissed == null || isNewer(latest, dismissed)) return true
+        return opensSinceDismiss >= DISMISS_RESHOW_OPENS
+    }
+
     /** True when [latest] is a higher dotted version than [current], ignoring a leading v. */
     fun isNewer(latest: String, current: String): Boolean {
         val left = parts(latest)

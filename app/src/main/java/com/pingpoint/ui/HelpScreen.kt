@@ -34,7 +34,7 @@ fun HelpScreen(modifier: Modifier = Modifier) {
         )
         HelpBlock(
             title = "Updates",
-            body = "When a newer release is on GitHub, PingPoint shows a banner with Get update. That opens the download page. Not now hides that version until a newer one appears.",
+            body = "When a newer release is on GitHub, PingPoint shows a banner with Get update. That opens the download page. Not now hides that version for the next three times you open the app, then the banner comes back. A still newer release shows right away.",
         )
         HelpBlock(
             title = "Sound",

@@ -105,8 +105,27 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) {
             null
         } ?: return
-        val dismissed = updatePrefs.dismissedVersion()
-        if (dismissed != null && !AppVersion.isNewer(update.versionName, dismissed)) return
+        var dismissed = updatePrefs.dismissedVersion()
+        val opens = when {
+            dismissed != null && !AppVersion.isNewer(update.versionName, dismissed) -> {
+                updatePrefs.recordOpen()
+            }
+            dismissed != null && AppVersion.isNewer(update.versionName, dismissed) -> {
+                updatePrefs.clearDismiss()
+                dismissed = null
+                0
+            }
+            else -> 0
+        }
+        if (!AppVersion.shouldOfferUpdate(
+                latest = update.versionName,
+                installed = BuildConfig.VERSION_NAME,
+                dismissed = dismissed,
+                opensSinceDismiss = opens,
+            )
+        ) {
+            return
+        }
         _uiState.update { it.copy(availableUpdate = update) }
     }
 

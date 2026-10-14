@@ -34,4 +34,13 @@ class UpdateCheckTest {
         assertNull(UpdateCheck.parseLatest(json, "1.0"))
         assertNull(UpdateCheck.parseLatest(json, "1.1"))
     }
+
+    @Test
+    fun notNowHidesUntilThreeOpensThenShowsAgain() {
+        assertFalse(AppVersion.shouldOfferUpdate("1.2", "1.1", dismissed = "1.2", opensSinceDismiss = 1))
+        assertFalse(AppVersion.shouldOfferUpdate("1.2", "1.1", dismissed = "1.2", opensSinceDismiss = 2))
+        assertTrue(AppVersion.shouldOfferUpdate("1.2", "1.1", dismissed = "1.2", opensSinceDismiss = 3))
+        assertTrue(AppVersion.shouldOfferUpdate("1.3", "1.1", dismissed = "1.2", opensSinceDismiss = 0))
+        assertTrue(AppVersion.shouldOfferUpdate("1.2", "1.1", dismissed = null, opensSinceDismiss = 0))
+    }
 }
