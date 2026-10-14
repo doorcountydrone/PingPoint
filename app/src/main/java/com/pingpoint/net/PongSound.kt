@@ -5,7 +5,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import com.pingpoint.R
 
-/** Plays the classic Pong hit when a ping gets a reply. */
+/** Loops the classic Pong hit while a ping, scan, or speed test is running. */
 class PongSound(context: Context) {
     private val appContext = context.applicationContext
     private var player: MediaPlayer? = null
@@ -14,13 +14,41 @@ class PongSound(context: Context) {
 
     fun setEnabled(on: Boolean) {
         enabled = on
-        if (!on) stop()
+        if (!on) stopLoop()
     }
 
-    fun play() {
+    fun startLoop() {
         if (!enabled) return
         try {
             val media = player ?: createPlayer() ?: return
+            media.isLooping = true
+            if (!media.isPlaying) {
+                media.seekTo(0)
+                media.start()
+            }
+        } catch (_: Exception) {
+            releasePlayer()
+        }
+    }
+
+    fun stopLoop() {
+        try {
+            player?.let { media ->
+                if (media.isPlaying) media.pause()
+                media.isLooping = false
+                media.seekTo(0)
+            }
+        } catch (_: Exception) {
+            releasePlayer()
+        }
+    }
+
+    /** Short preview when turning sound back on with nothing running. */
+    fun playOnce() {
+        if (!enabled) return
+        try {
+            val media = player ?: createPlayer() ?: return
+            media.isLooping = false
             if (media.isPlaying) return
             media.seekTo(0)
             media.start()
@@ -46,13 +74,6 @@ class PongSound(context: Context) {
             }
         } catch (_: Exception) {
             null
-        }
-    }
-
-    private fun stop() {
-        try {
-            player?.takeIf { it.isPlaying }?.pause()
-        } catch (_: Exception) {
         }
     }
 

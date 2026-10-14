@@ -75,6 +75,8 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
     private var speedGeneration = 0
     private var dnsGeneration = 0
     private var notificationAsked = false
+    private var soundJobs = 0
+    private var monitorSoundHeld = false
 
     init {
         refreshNetwork()
@@ -125,7 +127,31 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         soundPrefs.setEnabled(enabled)
         pongSound.setEnabled(enabled)
         _uiState.update { it.copy(soundEnabled = enabled) }
-        if (enabled) pongSound.play()
+        if (enabled) {
+            if (soundJobs > 0) pongSound.startLoop() else pongSound.playOnce()
+        }
+    }
+
+    private fun retainSound() {
+        soundJobs++
+        pongSound.startLoop()
+    }
+
+    private fun releaseSound() {
+        soundJobs = (soundJobs - 1).coerceAtLeast(0)
+        if (soundJobs == 0) pongSound.stopLoop()
+    }
+
+    private fun holdMonitorSound() {
+        if (monitorSoundHeld) return
+        monitorSoundHeld = true
+        retainSound()
+    }
+
+    private fun dropMonitorSound() {
+        if (!monitorSoundHeld) return
+        monitorSoundHeld = false
+        releaseSound()
     }
 
     fun onPacketCount(count: Int) {
@@ -158,6 +184,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         val generation = ++pingGeneration
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
+            retainSound()
             _uiState.update {
                 it.copy(
                     isPinging = true,
@@ -172,10 +199,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                 PingEngine.ping(host, count).collect { event ->
                     if (generation != pingGeneration) return@collect
                     when (event) {
-                        is PingEvent.Sample -> {
-                            _uiState.update { it.copy(samples = it.samples + event.sample) }
-                            pongSound.play()
-                        }
+                        is PingEvent.Sample -> _uiState.update { it.copy(samples = it.samples + event.sample) }
                         is PingEvent.Mac -> _uiState.update { it.copy(targetMac = event.mac) }
                         is PingEvent.Summary -> {
                             _uiState.update { it.copy(summary = event.summary) }
@@ -201,6 +225,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                     _uiState.update { it.copy(pingError = error.message ?: "Ping failed.") }
                 }
             } finally {
+                releaseSound()
                 if (generation == pingGeneration) {
                     _uiState.update { it.copy(isPinging = false) }
                 }
@@ -229,6 +254,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         val generation = ++scanGeneration
         scanJob?.cancel()
         scanJob = viewModelScope.launch {
+            retainSound()
             _uiState.update {
                 it.copy(
                     isScanning = true,
@@ -286,6 +312,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                     _uiState.update { it.copy(scanError = error.message ?: "Scan failed.") }
                 }
             } finally {
+                releaseSound()
                 if (generation == scanGeneration) {
                     _uiState.update { it.copy(isScanning = false) }
                 }
@@ -334,6 +361,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         val gateway = state.local?.gateway
         val generation = ++monitorGeneration
         monitorJob?.cancel()
+        dropMonitorSound()
         _uiState.update {
             it.copy(
                 isMonitoring = true,
@@ -352,24 +380,29 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         monitorJob = viewModelScope.launch {
-            MonitorRelay.ticks.collect { tick ->
-                if (generation != monitorGeneration) return@collect
-                when (tick) {
-                    is WatchTick.Round -> {
-                        appendMonitorPoint(
+            try {
+                MonitorRelay.ticks.collect { tick ->
+                    if (generation != monitorGeneration) return@collect
+                    when (tick) {
+                        is WatchTick.Round -> appendMonitorPoint(
                             MonitorPoint(tick.primaryRtt, if (tick.compare) tick.internetRtt else null),
                             lost = tick.primaryRtt == null,
                             internetLost = tick.compare && tick.internetRtt == null,
                         )
-                        if (tick.primaryRtt != null || (tick.compare && tick.internetRtt != null)) {
-                            pongSound.play()
+                        is WatchTick.Failed -> {
+                            dropMonitorSound()
+                            _uiState.update {
+                                it.copy(monitorError = tick.message, isMonitoring = false)
+                            }
+                        }
+                        WatchTick.Stopped -> {
+                            dropMonitorSound()
+                            _uiState.update { it.copy(isMonitoring = false) }
                         }
                     }
-                    is WatchTick.Failed -> _uiState.update {
-                        it.copy(monitorError = tick.message, isMonitoring = false)
-                    }
-                    WatchTick.Stopped -> _uiState.update { it.copy(isMonitoring = false) }
                 }
+            } finally {
+                dropMonitorSound()
             }
         }
         try {
@@ -380,9 +413,11 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                 seriesLabel(host, gateway, "Router"),
                 watchedInternet?.let { seriesLabel(it, gateway, "Internet") },
             )
+            holdMonitorSound()
         } catch (error: Exception) {
             monitorGeneration++
             monitorJob?.cancel()
+            dropMonitorSound()
             _uiState.update {
                 it.copy(
                     isMonitoring = false,
@@ -412,6 +447,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         speedJob = viewModelScope.launch {
+            retainSound()
             try {
                 SpeedTest.run().collect { event ->
                     if (generation != speedGeneration) return@collect
@@ -440,6 +476,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                     _uiState.update { it.copy(speedError = "Could not reach the test server.") }
                 }
             } finally {
+                releaseSound()
                 if (generation == speedGeneration) {
                     _uiState.update { it.copy(isSpeedTesting = false, speedPhase = null) }
                 }
@@ -503,6 +540,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
     fun stopMonitor() {
         monitorGeneration++
         monitorJob?.cancel()
+        dropMonitorSound()
         MonitorService.stop(appContext)
         _uiState.update { it.copy(isMonitoring = false) }
     }
@@ -515,6 +553,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         portJob?.cancel()
         speedJob?.cancel()
         dnsJob?.cancel()
+        dropMonitorSound()
         pongSound.release()
         MonitorService.stop(appContext)
     }

@@ -38,7 +38,7 @@ fun HelpScreen(modifier: Modifier = Modifier) {
         )
         HelpBlock(
             title = "Sound",
-            body = "The speaker icon plays the classic Pong hit when a ping or monitor packet gets a reply. Tap it to turn the sound off or on. The choice is remembered.",
+            body = "The speaker icon loops the classic Pong hit while a ping, monitor, network scan, or speed test is running, and stops when that run finishes. Starting again plays it again. Tap the icon to turn the sound off or on. The choice is remembered.",
         )
         HelpBlock(
             title = "Ping",
