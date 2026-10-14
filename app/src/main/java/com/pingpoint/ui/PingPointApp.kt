@@ -28,6 +28,8 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.automirrored.outlined.VolumeOff
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SwapVert
@@ -52,6 +54,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -68,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -78,6 +83,7 @@ import com.pingpoint.model.LocalNetworkInfo
 import com.pingpoint.model.PingSample
 import com.pingpoint.model.PingSummary
 import com.pingpoint.model.PingUiState
+import com.pingpoint.net.AppUpdate
 import com.pingpoint.net.MacVendor
 import com.pingpoint.net.Subnet
 
@@ -113,6 +119,8 @@ fun PingPointApp(
     onStopSpeed: () -> Unit,
     onDnsChange: (String) -> Unit,
     onDnsLookup: () -> Unit,
+    onToggleSound: () -> Unit,
+    onDismissUpdate: () -> Unit,
 ) {
     var helpOpen by rememberSaveable { mutableStateOf(false) }
     val notificationPermission = rememberLauncherForActivityResult(
@@ -138,6 +146,12 @@ fun PingPointApp(
                     },
                     actions = {
                         if (!helpOpen) {
+                            IconButton(onClick = onToggleSound) {
+                                Icon(
+                                    imageVector = if (state.soundEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff,
+                                    contentDescription = if (state.soundEnabled) "Sound on" else "Sound off",
+                                )
+                            }
                             IconButton(onClick = { helpOpen = true }) {
                                 Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "Help")
                             }
@@ -186,52 +200,57 @@ fun PingPointApp(
             }
         },
     ) { padding ->
-        if (helpOpen) {
-            HelpScreen(Modifier.padding(padding))
-        } else when (state.tab) {
-            0 -> PingTab(
-                state = state,
-                modifier = Modifier.padding(padding),
-                onHostChange = onHostChange,
-                onPacketCount = onPacketCount,
-                onPing = onPing,
-                onStopPing = onStopPing,
-                onSaveCurrent = onSaveCurrent,
-                onPingSaved = onDeviceClick,
-                onMonitorSaved = onMonitorSaved,
-                onCheckPorts = onCheckPorts,
-                onEditSaved = { device -> onSaveDevice(device.host, device.mac, device.name) },
-            )
-            1 -> MonitorTab(
-                state = state,
-                modifier = Modifier.padding(padding),
-                onHostChange = onHostChange,
-                onInternetChange = onInternetChange,
-                onStart = onStartMonitor,
-                onStop = onStopMonitor,
-                onSaveCurrent = onSaveCurrent,
-            )
-            2 -> DevicesTab(
-                state = state,
-                modifier = Modifier.padding(padding),
-                onScan = onScan,
-                onStopScan = onStopScan,
-                onDeviceClick = onDeviceClick,
-                onSaveDevice = onSaveDevice,
-                savedHosts = state.savedDevices.map { it.host },
-            )
-            3 -> SpeedTab(
-                state = state,
-                modifier = Modifier.padding(padding),
-                onStart = onStartSpeed,
-                onStop = onStopSpeed,
-            )
-            else -> DnsTab(
-                state = state,
-                modifier = Modifier.padding(padding),
-                onQueryChange = onDnsChange,
-                onLookup = onDnsLookup,
-            )
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            state.availableUpdate?.let { update ->
+                UpdateBanner(update = update, onDismiss = onDismissUpdate)
+            }
+            if (helpOpen) {
+                HelpScreen(Modifier.fillMaxSize())
+            } else when (state.tab) {
+                0 -> PingTab(
+                    state = state,
+                    modifier = Modifier.fillMaxSize(),
+                    onHostChange = onHostChange,
+                    onPacketCount = onPacketCount,
+                    onPing = onPing,
+                    onStopPing = onStopPing,
+                    onSaveCurrent = onSaveCurrent,
+                    onPingSaved = onDeviceClick,
+                    onMonitorSaved = onMonitorSaved,
+                    onCheckPorts = onCheckPorts,
+                    onEditSaved = { device -> onSaveDevice(device.host, device.mac, device.name) },
+                )
+                1 -> MonitorTab(
+                    state = state,
+                    modifier = Modifier.fillMaxSize(),
+                    onHostChange = onHostChange,
+                    onInternetChange = onInternetChange,
+                    onStart = onStartMonitor,
+                    onStop = onStopMonitor,
+                    onSaveCurrent = onSaveCurrent,
+                )
+                2 -> DevicesTab(
+                    state = state,
+                    modifier = Modifier.fillMaxSize(),
+                    onScan = onScan,
+                    onStopScan = onStopScan,
+                    onDeviceClick = onDeviceClick,
+                    onSaveDevice = onSaveDevice,
+                    savedHosts = state.savedDevices.map { it.host },
+                )
+                3 -> SpeedTab(
+                    state = state,
+                    modifier = Modifier.fillMaxSize(),
+                    onStart = onStartSpeed,
+                    onStop = onStopSpeed,
+                )
+                else -> DnsTab(
+                    state = state,
+                    modifier = Modifier.fillMaxSize(),
+                    onQueryChange = onDnsChange,
+                    onLookup = onDnsLookup,
+                )
+            }
         }
         val prompt = state.savePrompt
         state.portCheck?.let { check ->
@@ -246,6 +265,41 @@ fun PingPointApp(
                 onRemove = { onRemoveSaved(prompt.host) },
                 onDismiss = onDismissSave,
             )
+        }
+    }
+}
+
+@Composable
+private fun UpdateBanner(update: AppUpdate, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Version ${update.versionName} is available",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                "A newer PingPoint is ready to download.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.pageUrl)))
+                    },
+                ) {
+                    Text("Get update")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Not now")
+                }
+            }
         }
     }
 }

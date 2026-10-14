@@ -33,6 +33,14 @@ fun HelpScreen(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyLarge,
         )
         HelpBlock(
+            title = "Updates",
+            body = "When a newer release is on GitHub, PingPoint shows a banner with Get update. That opens the download page. Not now hides that version until a newer one appears.",
+        )
+        HelpBlock(
+            title = "Sound",
+            body = "The speaker icon plays the classic Pong hit when a ping or monitor packet gets a reply. Tap it to turn the sound off or on. The choice is remembered.",
+        )
+        HelpBlock(
             title = "Ping",
             body = "Sends a few packets to an address and times each reply. Under 20 ms is Fast, under 60 ms is Good, under 150 ms is Fair, and anything slower is Slow. Choose 1, 4, 8, or 16 packets. The bookmark saves that address.",
         )

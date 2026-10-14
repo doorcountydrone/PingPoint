@@ -19,16 +19,22 @@ import com.pingpoint.net.DnsLookup
 import com.pingpoint.net.HostInput
 import com.pingpoint.net.LocalNetwork
 import com.pingpoint.net.MonitorRelay
+import com.pingpoint.BuildConfig
+import com.pingpoint.net.AppVersion
 import com.pingpoint.net.OuiTable
+import com.pingpoint.net.PongSound
 import com.pingpoint.net.PortProbe
 import com.pingpoint.net.PingEngine
 import com.pingpoint.net.PingEvent
 import com.pingpoint.net.SavedDeviceCodec
+import com.pingpoint.net.SoundPrefs
 import com.pingpoint.net.SpeedEvent
 import com.pingpoint.net.SpeedTest
 import com.pingpoint.net.SavedDeviceStore
 import com.pingpoint.net.ScanEvent
 import com.pingpoint.net.Subnet
+import com.pingpoint.net.UpdateCheck
+import com.pingpoint.net.UpdatePrefs
 import com.pingpoint.ui.seriesLabel
 import com.pingpoint.net.WatchTick
 import kotlinx.coroutines.CancellationException
@@ -45,7 +51,15 @@ import kotlinx.coroutines.sync.withPermit
 class PingViewModel(app: Application) : AndroidViewModel(app) {
     private val appContext = app.applicationContext
     private val savedStore = SavedDeviceStore(appContext)
-    private val _uiState = MutableStateFlow(PingUiState(savedDevices = savedStore.read()))
+    private val soundPrefs = SoundPrefs(appContext)
+    private val updatePrefs = UpdatePrefs(appContext)
+    private val pongSound = PongSound(appContext).also { it.setEnabled(soundPrefs.isEnabled()) }
+    private val _uiState = MutableStateFlow(
+        PingUiState(
+            savedDevices = savedStore.read(),
+            soundEnabled = soundPrefs.isEnabled(),
+        ),
+    )
     val uiState: StateFlow<PingUiState> = _uiState.asStateFlow()
 
     private var pingJob: Job? = null
@@ -72,6 +86,26 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
             }
             _uiState.update { it.copy(vendors = vendors) }
         }
+        viewModelScope.launch(Dispatchers.IO) {
+            checkForUpdate()
+        }
+    }
+
+    fun dismissUpdate() {
+        val update = _uiState.value.availableUpdate ?: return
+        updatePrefs.dismiss(update.versionName)
+        _uiState.update { it.copy(availableUpdate = null) }
+    }
+
+    private suspend fun checkForUpdate() {
+        val update = try {
+            UpdateCheck.check(BuildConfig.VERSION_NAME)
+        } catch (_: Exception) {
+            null
+        } ?: return
+        val dismissed = updatePrefs.dismissedVersion()
+        if (dismissed != null && !AppVersion.isNewer(update.versionName, dismissed)) return
+        _uiState.update { it.copy(availableUpdate = update) }
     }
 
     fun onHostChange(value: String) {
@@ -84,6 +118,14 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onDnsChange(value: String) {
         _uiState.update { it.copy(dnsInput = value, dnsError = null) }
+    }
+
+    fun toggleSound() {
+        val enabled = !_uiState.value.soundEnabled
+        soundPrefs.setEnabled(enabled)
+        pongSound.setEnabled(enabled)
+        _uiState.update { it.copy(soundEnabled = enabled) }
+        if (enabled) pongSound.play()
     }
 
     fun onPacketCount(count: Int) {
@@ -130,7 +172,10 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                 PingEngine.ping(host, count).collect { event ->
                     if (generation != pingGeneration) return@collect
                     when (event) {
-                        is PingEvent.Sample -> _uiState.update { it.copy(samples = it.samples + event.sample) }
+                        is PingEvent.Sample -> {
+                            _uiState.update { it.copy(samples = it.samples + event.sample) }
+                            pongSound.play()
+                        }
                         is PingEvent.Mac -> _uiState.update { it.copy(targetMac = event.mac) }
                         is PingEvent.Summary -> {
                             _uiState.update { it.copy(summary = event.summary) }
@@ -310,11 +355,16 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
             MonitorRelay.ticks.collect { tick ->
                 if (generation != monitorGeneration) return@collect
                 when (tick) {
-                    is WatchTick.Round -> appendMonitorPoint(
-                        MonitorPoint(tick.primaryRtt, if (tick.compare) tick.internetRtt else null),
-                        lost = tick.primaryRtt == null,
-                        internetLost = tick.compare && tick.internetRtt == null,
-                    )
+                    is WatchTick.Round -> {
+                        appendMonitorPoint(
+                            MonitorPoint(tick.primaryRtt, if (tick.compare) tick.internetRtt else null),
+                            lost = tick.primaryRtt == null,
+                            internetLost = tick.compare && tick.internetRtt == null,
+                        )
+                        if (tick.primaryRtt != null || (tick.compare && tick.internetRtt != null)) {
+                            pongSound.play()
+                        }
+                    }
                     is WatchTick.Failed -> _uiState.update {
                         it.copy(monitorError = tick.message, isMonitoring = false)
                     }
@@ -465,6 +515,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         portJob?.cancel()
         speedJob?.cancel()
         dnsJob?.cancel()
+        pongSound.release()
         MonitorService.stop(appContext)
     }
 

@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
                     onStopSpeed = viewModel::stopSpeedTest,
                     onDnsChange = viewModel::onDnsChange,
                     onDnsLookup = viewModel::startDnsLookup,
+                    onToggleSound = viewModel::toggleSound,
+                    onDismissUpdate = viewModel::dismissUpdate,
                 )
             }
         }

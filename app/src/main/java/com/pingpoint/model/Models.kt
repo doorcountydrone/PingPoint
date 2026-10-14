@@ -1,5 +1,6 @@
 package com.pingpoint.model
 
+import com.pingpoint.net.AppUpdate
 import com.pingpoint.net.DnsRecord
 import com.pingpoint.net.PortResult
 import com.pingpoint.net.SpeedPhase
@@ -112,5 +113,7 @@ data class PingUiState(
     val dnsElapsedMs: Long? = null,
     val dnsError: String? = null,
     val vendors: Map<String, String> = emptyMap(),
+    val soundEnabled: Boolean = true,
+    val availableUpdate: AppUpdate? = null,
     val tab: Int = 0,
 )
