@@ -37,6 +37,10 @@ fun HelpScreen(modifier: Modifier = Modifier) {
             body = "When a newer release is on GitHub, PingPoint shows a banner with Get update. That opens the download page. Not now hides that version for the next three times you open the app, then the banner comes back. A still newer release shows right away.",
         )
         HelpBlock(
+            title = "Theme",
+            body = "The sun, moon, or auto icon in the top bar cycles light, dark, and follow the phone. The choice is remembered.",
+        )
+        HelpBlock(
             title = "Sound",
             body = "The speaker icon loops the classic Pong hit while a ping, monitor, network scan, or speed test is running, and stops when that run finishes. Starting again plays it again. Tap the icon to turn the sound off or on. The choice is remembered.",
         )
@@ -54,7 +58,7 @@ fun HelpScreen(modifier: Modifier = Modifier) {
         )
         HelpBlock(
             title = "Saved devices",
-            body = "The bookmark keeps a device on the Ping screen. The chart icon monitors it. The ethernet icon checks three ports: web (80), secure web (443), and DNS (53). Open means something is listening. Closed means the device refused that port. DNS is checked over TCP, so a closed DNS port can still answer ordinary name lookups.",
+            body = "The bookmark keeps a device on the Ping screen. The chart icon monitors it. The ethernet icon checks three ports: web (80), secure web (443), and DNS (53). The power icon sends a Wake-on-LAN packet when a MAC address is saved on the device. Open means something is listening. Closed means the device refused that port. DNS is checked over TCP, so a closed DNS port can still answer ordinary name lookups.",
         )
         HelpBlock(
             title = "MAC addresses",
@@ -63,6 +67,10 @@ fun HelpScreen(modifier: Modifier = Modifier) {
         HelpBlock(
             title = "DNS",
             body = "Looks up a name with this phone's DNS and lists the IPv4 and IPv6 addresses. Enter an IP address instead and it looks for the name listed for that address.",
+        )
+        HelpBlock(
+            title = "History",
+            body = "Keeps recent finished speed tests and monitor sessions, with averages and loss. Clear removes the list from this phone.",
         )
         HelpBlock(
             title = "Speed",

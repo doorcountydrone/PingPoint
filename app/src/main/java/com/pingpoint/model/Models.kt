@@ -4,6 +4,7 @@ import com.pingpoint.net.AppUpdate
 import com.pingpoint.net.DnsRecord
 import com.pingpoint.net.PortResult
 import com.pingpoint.net.SpeedPhase
+import com.pingpoint.net.ThemePreference
 
 data class PingSample(
     val sequence: Int,
@@ -39,7 +40,7 @@ data class SavedDevice(
 
 data class SavePrompt(
     val host: String,
-    val mac: String?,
+    val mac: String,
     val name: String,
 )
 
@@ -49,6 +50,27 @@ data class PortCheck(
     val running: Boolean,
     val results: List<PortResult> = emptyList(),
 )
+
+sealed interface HistoryEntry {
+    val atMillis: Long
+}
+
+data class SpeedHistory(
+    override val atMillis: Long,
+    val downloadMbps: Double,
+    val uploadMbps: Double,
+) : HistoryEntry
+
+data class MonitorHistory(
+    override val atMillis: Long,
+    val host: String,
+    val avgMs: Double?,
+    val lossPercent: Int,
+    val sent: Int,
+    val internetHost: String? = null,
+    val internetAvgMs: Double? = null,
+    val internetLossPercent: Int? = null,
+) : HistoryEntry
 
 /** One monitor sample. A null time means that side got no reply. */
 data class MonitorPoint(
@@ -101,6 +123,8 @@ data class PingUiState(
     val savedDevices: List<SavedDevice> = emptyList(),
     val savePrompt: SavePrompt? = null,
     val portCheck: PortCheck? = null,
+    val history: List<HistoryEntry> = emptyList(),
+    val wolMessage: String? = null,
     val isSpeedTesting: Boolean = false,
     val speedPhase: SpeedPhase? = null,
     val speedLiveMbps: Double? = null,
@@ -114,6 +138,7 @@ data class PingUiState(
     val dnsError: String? = null,
     val vendors: Map<String, String> = emptyMap(),
     val soundEnabled: Boolean = true,
+    val themePreference: ThemePreference = ThemePreference.System,
     val availableUpdate: AppUpdate? = null,
     val tab: Int = 0,
 )

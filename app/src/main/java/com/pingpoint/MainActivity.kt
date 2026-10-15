@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: PingViewModel = viewModel()
             val state by viewModel.uiState.collectAsStateWithLifecycle()
-            PingPointTheme {
+            PingPointTheme(preference = state.themePreference) {
                 PingPointApp(
                     state = state,
                     onHostChange = viewModel::onHostChange,
@@ -36,10 +36,12 @@ class MainActivity : ComponentActivity() {
                     onSaveCurrent = viewModel::promptSaveCurrent,
                     onSaveDevice = viewModel::promptSaveDevice,
                     onSaveNameChange = viewModel::onSaveNameChange,
+                    onSaveMacChange = viewModel::onSaveMacChange,
                     onConfirmSave = viewModel::confirmSave,
                     onDismissSave = viewModel::dismissSave,
                     onRemoveSaved = viewModel::removeSaved,
                     onMonitorSaved = viewModel::monitorSaved,
+                    onWakeSaved = viewModel::wakeSaved,
                     onCheckPorts = viewModel::checkSavedPorts,
                     onDismissPortCheck = viewModel::dismissPortCheck,
                     onStartSpeed = viewModel::startSpeedTest,
@@ -47,7 +49,9 @@ class MainActivity : ComponentActivity() {
                     onDnsChange = viewModel::onDnsChange,
                     onDnsLookup = viewModel::startDnsLookup,
                     onToggleSound = viewModel::toggleSound,
+                    onCycleTheme = viewModel::cycleTheme,
                     onDismissUpdate = viewModel::dismissUpdate,
+                    onClearHistory = viewModel::clearHistory,
                 )
             }
         }

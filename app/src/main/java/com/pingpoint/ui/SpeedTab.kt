@@ -1,7 +1,6 @@
 package com.pingpoint.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -42,6 +41,7 @@ import com.pingpoint.ui.theme.Signal
 import com.pingpoint.ui.theme.SignalDark
 import com.pingpoint.ui.theme.Sky
 import com.pingpoint.ui.theme.SkyDark
+import com.pingpoint.ui.theme.isAppInDarkTheme
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -102,8 +102,8 @@ fun SpeedTab(
 
 @Composable
 private fun SpeedReadout(state: PingUiState) {
-    val downloadColor = if (isSystemInDarkTheme()) Signal else SignalDark
-    val uploadColor = if (isSystemInDarkTheme()) Sky else SkyDark
+    val downloadColor = if (isAppInDarkTheme()) Signal else SignalDark
+    val uploadColor = if (isAppInDarkTheme()) Sky else SkyDark
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),

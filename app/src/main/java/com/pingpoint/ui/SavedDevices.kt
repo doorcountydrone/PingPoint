@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.SettingsEthernet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -39,14 +40,19 @@ import com.pingpoint.net.portStateLabel
 fun SavedDeviceSection(
     devices: List<SavedDevice>,
     vendors: Map<String, String>,
+    wolMessage: String? = null,
     onPing: (String) -> Unit,
     onMonitor: (String) -> Unit,
     onCheckPorts: (String) -> Unit,
+    onWake: (String) -> Unit,
     onEdit: (SavedDevice) -> Unit,
 ) {
     if (devices.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Saved", style = MaterialTheme.typography.titleMedium)
+        wolMessage?.let { message ->
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+        }
         devices.forEach { device ->
             SavedDeviceRow(
                 device = device,
@@ -54,6 +60,7 @@ fun SavedDeviceSection(
                 onPing = { onPing(device.host) },
                 onMonitor = { onMonitor(device.host) },
                 onCheckPorts = { onCheckPorts(device.host) },
+                onWake = { onWake(device.host) },
                 onEdit = { onEdit(device) },
             )
         }
@@ -65,6 +72,7 @@ fun SaveDeviceDialog(
     prompt: SavePrompt,
     alreadySaved: Boolean,
     onNameChange: (String) -> Unit,
+    onMacChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
@@ -82,9 +90,17 @@ fun SaveDeviceDialog(
                     label = { Text("Name") },
                 )
                 Text(prompt.host, fontFamily = FontFamily.Monospace)
-                prompt.mac?.let { mac ->
-                    Text(mac, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                OutlinedTextField(
+                    value = prompt.mac,
+                    onValueChange = onMacChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("MAC address") },
+                    placeholder = { Text("AA:BB:CC:DD:EE:FF") },
+                    supportingText = {
+                        Text("Needed for Wake-on-LAN. Android cannot fill this in automatically.")
+                    },
+                )
             }
         },
         confirmButton = {
@@ -163,6 +179,7 @@ private fun SavedDeviceRow(
     onPing: () -> Unit,
     onMonitor: () -> Unit,
     onCheckPorts: () -> Unit,
+    onWake: () -> Unit,
     onEdit: () -> Unit,
 ) {
     Card(
@@ -205,6 +222,9 @@ private fun SavedDeviceRow(
             }
             IconButton(onClick = onCheckPorts) {
                 Icon(Icons.Outlined.SettingsEthernet, contentDescription = "Check ports for ${device.name}")
+            }
+            IconButton(onClick = onWake) {
+                Icon(Icons.Outlined.PowerSettingsNew, contentDescription = "Wake ${device.name}")
             }
             SaveBookmarkButton(saved = true, onClick = onEdit)
         }

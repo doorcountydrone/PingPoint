@@ -1,6 +1,5 @@
 package com.pingpoint.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.pingpoint.ui.theme.Fair
@@ -9,6 +8,7 @@ import com.pingpoint.ui.theme.SignalDark
 import com.pingpoint.ui.theme.Sky
 import com.pingpoint.ui.theme.SkyDark
 import com.pingpoint.ui.theme.Slow
+import com.pingpoint.ui.theme.isAppInDarkTheme
 import java.util.Locale
 
 fun formatMbps(mbps: Double): String {
@@ -58,7 +58,7 @@ fun bandLabel(band: LatencyBand): String = when (band) {
 
 @Composable
 fun latencyColor(ms: Double): Color {
-    val dark = isSystemInDarkTheme()
+    val dark = isAppInDarkTheme()
     return when {
         ms < 20 -> if (dark) Signal else SignalDark
         ms < 60 -> if (dark) Sky else SkyDark

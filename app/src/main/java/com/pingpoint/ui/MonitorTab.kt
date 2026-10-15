@@ -1,7 +1,6 @@
 package com.pingpoint.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +48,7 @@ import com.pingpoint.model.MonitorPoint
 import com.pingpoint.model.PingUiState
 import com.pingpoint.ui.theme.Sky
 import com.pingpoint.ui.theme.SkyDark
+import com.pingpoint.ui.theme.isAppInDarkTheme
 
 private const val CHART_MAX_MS = 240.0
 
@@ -241,7 +241,7 @@ private fun Reading(label: String, rttMs: Double?, waiting: Boolean, modifier: M
 
 @Composable
 private fun SeriesLegend(state: PingUiState) {
-    val far = if (isSystemInDarkTheme()) Sky else SkyDark
+    val far = if (isAppInDarkTheme()) Sky else SkyDark
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         LegendItem(MaterialTheme.colorScheme.onSurface, seriesLabel(state.monitorHost, state.local?.gateway, "Router"))
         LegendItem(far, seriesLabel(state.monitorInternetHost, state.local?.gateway, "Internet"))
@@ -263,7 +263,7 @@ private fun LatencyChart(points: List<MonitorPoint>, compare: Boolean) {
     val bad = bandColor(LatencyBand.Bad)
     val axis = MaterialTheme.colorScheme.onSurfaceVariant
     val line = MaterialTheme.colorScheme.onSurface
-    val far = if (isSystemInDarkTheme()) Sky else SkyDark
+    val far = if (isAppInDarkTheme()) Sky else SkyDark
 
     Row(Modifier.fillMaxWidth().height(260.dp)) {
         Column(Modifier.fillMaxHeight().width(48.dp)) {

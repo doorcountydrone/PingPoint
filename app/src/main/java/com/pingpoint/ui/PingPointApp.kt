@@ -27,9 +27,14 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.BrightnessAuto
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import com.pingpoint.net.ThemePreference
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SwapVert
@@ -109,10 +114,12 @@ fun PingPointApp(
     onSaveCurrent: () -> Unit,
     onSaveDevice: (String, String?, String?) -> Unit,
     onSaveNameChange: (String) -> Unit,
+    onSaveMacChange: (String) -> Unit,
     onConfirmSave: () -> Unit,
     onDismissSave: () -> Unit,
     onRemoveSaved: (String) -> Unit,
     onMonitorSaved: (String) -> Unit,
+    onWakeSaved: (String) -> Unit,
     onCheckPorts: (String) -> Unit,
     onDismissPortCheck: () -> Unit,
     onStartSpeed: () -> Unit,
@@ -120,7 +127,9 @@ fun PingPointApp(
     onDnsChange: (String) -> Unit,
     onDnsLookup: () -> Unit,
     onToggleSound: () -> Unit,
+    onCycleTheme: () -> Unit,
     onDismissUpdate: () -> Unit,
+    onClearHistory: () -> Unit,
 ) {
     var helpOpen by rememberSaveable { mutableStateOf(false) }
     val notificationPermission = rememberLauncherForActivityResult(
@@ -146,6 +155,20 @@ fun PingPointApp(
                     },
                     actions = {
                         if (!helpOpen) {
+                            IconButton(onClick = onCycleTheme) {
+                                Icon(
+                                    imageVector = when (state.themePreference) {
+                                        ThemePreference.System -> Icons.Outlined.BrightnessAuto
+                                        ThemePreference.Light -> Icons.Outlined.LightMode
+                                        ThemePreference.Dark -> Icons.Outlined.DarkMode
+                                    },
+                                    contentDescription = when (state.themePreference) {
+                                        ThemePreference.System -> "Theme follows system"
+                                        ThemePreference.Light -> "Light theme"
+                                        ThemePreference.Dark -> "Dark theme"
+                                    },
+                                )
+                            }
                             IconButton(onClick = onToggleSound) {
                                 Icon(
                                     imageVector = if (state.soundEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff,
@@ -196,6 +219,12 @@ fun PingPointApp(
                         text = { Text("DNS") },
                         icon = { Icon(Icons.Outlined.Dns, contentDescription = null) },
                     )
+                    Tab(
+                        selected = state.tab == 5,
+                        onClick = { onSelectTab(5) },
+                        text = { Text("History") },
+                        icon = { Icon(Icons.Outlined.History, contentDescription = null) },
+                    )
                 }
             }
         },
@@ -217,6 +246,7 @@ fun PingPointApp(
                     onSaveCurrent = onSaveCurrent,
                     onPingSaved = onDeviceClick,
                     onMonitorSaved = onMonitorSaved,
+                    onWakeSaved = onWakeSaved,
                     onCheckPorts = onCheckPorts,
                     onEditSaved = { device -> onSaveDevice(device.host, device.mac, device.name) },
                 )
@@ -244,11 +274,16 @@ fun PingPointApp(
                     onStart = onStartSpeed,
                     onStop = onStopSpeed,
                 )
-                else -> DnsTab(
+                4 -> DnsTab(
                     state = state,
                     modifier = Modifier.fillMaxSize(),
                     onQueryChange = onDnsChange,
                     onLookup = onDnsLookup,
+                )
+                else -> HistoryTab(
+                    state = state,
+                    modifier = Modifier.fillMaxSize(),
+                    onClear = onClearHistory,
                 )
             }
         }
@@ -261,6 +296,7 @@ fun PingPointApp(
                 prompt = prompt,
                 alreadySaved = state.hostIsSaved(prompt.host),
                 onNameChange = onSaveNameChange,
+                onMacChange = onSaveMacChange,
                 onConfirm = onConfirmSave,
                 onRemove = { onRemoveSaved(prompt.host) },
                 onDismiss = onDismissSave,
@@ -316,6 +352,7 @@ private fun PingTab(
     onSaveCurrent: () -> Unit,
     onPingSaved: (String) -> Unit,
     onMonitorSaved: (String) -> Unit,
+    onWakeSaved: (String) -> Unit,
     onCheckPorts: (String) -> Unit,
     onEditSaved: (com.pingpoint.model.SavedDevice) -> Unit,
 ) {
@@ -330,9 +367,11 @@ private fun PingTab(
         SavedDeviceSection(
             devices = state.savedDevices,
             vendors = state.vendors,
+            wolMessage = state.wolMessage,
             onPing = onPingSaved,
             onMonitor = onMonitorSaved,
             onCheckPorts = onCheckPorts,
+            onWake = onWakeSaved,
             onEdit = onEditSaved,
         )
         OutlinedTextField(

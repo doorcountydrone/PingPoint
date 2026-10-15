@@ -7,36 +7,42 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.pingpoint.BuildConfig
 import com.pingpoint.model.MONITOR_CAPACITY
+import com.pingpoint.model.MonitorHistory
 import com.pingpoint.model.MonitorPoint
 import com.pingpoint.model.PingUiState
 import com.pingpoint.model.PortCheck
 import com.pingpoint.model.SavePrompt
 import com.pingpoint.model.SavedDevice
+import com.pingpoint.model.SpeedHistory
+import com.pingpoint.net.AppVersion
 import com.pingpoint.net.ArpTable
 import com.pingpoint.net.DeviceNameResolver
 import com.pingpoint.net.DnsLookup
+import com.pingpoint.net.HistoryCodec
+import com.pingpoint.net.HistoryStore
 import com.pingpoint.net.HostInput
 import com.pingpoint.net.LocalNetwork
 import com.pingpoint.net.MonitorRelay
-import com.pingpoint.BuildConfig
-import com.pingpoint.net.AppVersion
 import com.pingpoint.net.OuiTable
-import com.pingpoint.net.PongSound
-import com.pingpoint.net.PortProbe
 import com.pingpoint.net.PingEngine
 import com.pingpoint.net.PingEvent
+import com.pingpoint.net.PongSound
+import com.pingpoint.net.PortProbe
 import com.pingpoint.net.SavedDeviceCodec
+import com.pingpoint.net.SavedDeviceStore
+import com.pingpoint.net.ScanEvent
 import com.pingpoint.net.SoundPrefs
 import com.pingpoint.net.SpeedEvent
 import com.pingpoint.net.SpeedTest
-import com.pingpoint.net.SavedDeviceStore
-import com.pingpoint.net.ScanEvent
 import com.pingpoint.net.Subnet
+import com.pingpoint.net.ThemePrefs
 import com.pingpoint.net.UpdateCheck
 import com.pingpoint.net.UpdatePrefs
-import com.pingpoint.ui.seriesLabel
+import com.pingpoint.net.WakeOnLan
 import com.pingpoint.net.WatchTick
+import com.pingpoint.ui.seriesLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,13 +57,17 @@ import kotlinx.coroutines.sync.withPermit
 class PingViewModel(app: Application) : AndroidViewModel(app) {
     private val appContext = app.applicationContext
     private val savedStore = SavedDeviceStore(appContext)
+    private val historyStore = HistoryStore(appContext)
     private val soundPrefs = SoundPrefs(appContext)
+    private val themePrefs = ThemePrefs(appContext)
     private val updatePrefs = UpdatePrefs(appContext)
     private val pongSound = PongSound(appContext).also { it.setEnabled(soundPrefs.isEnabled()) }
     private val _uiState = MutableStateFlow(
         PingUiState(
             savedDevices = savedStore.read(),
+            history = historyStore.read(),
             soundEnabled = soundPrefs.isEnabled(),
+            themePreference = themePrefs.read(),
         ),
     )
     val uiState: StateFlow<PingUiState> = _uiState.asStateFlow()
@@ -77,6 +87,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
     private var notificationAsked = false
     private var soundJobs = 0
     private var monitorSoundHeld = false
+    private var monitorSessionRecorded = false
 
     init {
         refreshNetwork()
@@ -149,6 +160,12 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         if (enabled) {
             if (soundJobs > 0) pongSound.startLoop() else pongSound.playOnce()
         }
+    }
+
+    fun cycleTheme() {
+        val next = themePrefs.next(_uiState.value.themePreference)
+        themePrefs.write(next)
+        _uiState.update { it.copy(themePreference = next) }
     }
 
     private fun retainSound() {
@@ -381,6 +398,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         val generation = ++monitorGeneration
         monitorJob?.cancel()
         dropMonitorSound()
+        monitorSessionRecorded = false
         _uiState.update {
             it.copy(
                 isMonitoring = true,
@@ -410,12 +428,14 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                         )
                         is WatchTick.Failed -> {
                             dropMonitorSound()
+                            recordMonitorHistory()
                             _uiState.update {
                                 it.copy(monitorError = tick.message, isMonitoring = false)
                             }
                         }
                         WatchTick.Stopped -> {
                             dropMonitorSound()
+                            recordMonitorHistory()
                             _uiState.update { it.copy(isMonitoring = false) }
                         }
                     }
@@ -477,13 +497,23 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
                         is SpeedEvent.DownloadDone -> _uiState.update {
                             it.copy(downloadMbps = event.megabitsPerSecond)
                         }
-                        is SpeedEvent.Finished -> _uiState.update {
-                            it.copy(
+                        is SpeedEvent.Finished -> {
+                            val entry = SpeedHistory(
+                                atMillis = System.currentTimeMillis(),
                                 downloadMbps = event.downloadMbps,
                                 uploadMbps = event.uploadMbps,
-                                speedLiveMbps = null,
-                                speedPhase = null,
                             )
+                            val history = HistoryCodec.prepend(_uiState.value.history, entry)
+                            historyStore.write(history)
+                            _uiState.update {
+                                it.copy(
+                                    downloadMbps = event.downloadMbps,
+                                    uploadMbps = event.uploadMbps,
+                                    speedLiveMbps = null,
+                                    speedPhase = null,
+                                    history = history,
+                                )
+                            }
                         }
                         is SpeedEvent.Failure -> _uiState.update { it.copy(speedError = event.message) }
                     }
@@ -561,7 +591,63 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         monitorJob?.cancel()
         dropMonitorSound()
         MonitorService.stop(appContext)
+        recordMonitorHistory()
         _uiState.update { it.copy(isMonitoring = false) }
+    }
+
+    fun wakeSaved(host: String) {
+        val device = _uiState.value.savedDevices.find { it.host.equals(host, ignoreCase = true) } ?: return
+        val mac = device.mac
+        if (mac.isNullOrBlank()) {
+            _uiState.update {
+                it.copy(wolMessage = "Add a MAC address when you edit this device, then try Wake again.")
+            }
+            return
+        }
+        viewModelScope.launch {
+            val message = try {
+                WakeOnLan.wake(mac)
+            } catch (_: Exception) {
+                "Could not send the wake packet."
+            }
+            _uiState.update { it.copy(wolMessage = message) }
+        }
+    }
+
+    fun clearWolMessage() {
+        _uiState.update { it.copy(wolMessage = null) }
+    }
+
+    fun clearHistory() {
+        historyStore.write(emptyList())
+        _uiState.update { it.copy(history = emptyList()) }
+    }
+
+    private fun recordMonitorHistory() {
+        if (monitorSessionRecorded) return
+        val state = _uiState.value
+        if (state.monitorSent < 3) return
+        val host = state.monitorHost ?: return
+        monitorSessionRecorded = true
+        val replies = state.monitorPoints.mapNotNull { it.rttMs }
+        val internetReplies = state.monitorPoints.mapNotNull { it.internetRttMs }
+        val entry = MonitorHistory(
+            atMillis = System.currentTimeMillis(),
+            host = host,
+            avgMs = replies.takeIf { it.isNotEmpty() }?.average(),
+            lossPercent = if (state.monitorSent == 0) 0 else state.monitorLost * 100 / state.monitorSent,
+            sent = state.monitorSent,
+            internetHost = state.monitorInternetHost,
+            internetAvgMs = internetReplies.takeIf { it.isNotEmpty() }?.average(),
+            internetLossPercent = if (!state.monitorCompare || state.internetSent == 0) {
+                null
+            } else {
+                state.internetLost * 100 / state.internetSent
+            },
+        )
+        val history = HistoryCodec.prepend(state.history, entry)
+        historyStore.write(history)
+        _uiState.update { it.copy(history = history) }
     }
 
     override fun onCleared() {
@@ -633,6 +719,13 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
         _uiState.update { state ->
             val prompt = state.savePrompt ?: return@update state
             state.copy(savePrompt = prompt.copy(name = value.take(40)))
+        }
+    }
+
+    fun onSaveMacChange(value: String) {
+        _uiState.update { state ->
+            val prompt = state.savePrompt ?: return@update state
+            state.copy(savePrompt = prompt.copy(mac = value.take(17)))
         }
     }
 
@@ -710,7 +803,7 @@ class PingViewModel(app: Application) : AndroidViewModel(app) {
             it.copy(
                 savePrompt = SavePrompt(
                     host = host,
-                    mac = SavedDeviceCodec.normalizeMac(mac),
+                    mac = SavedDeviceCodec.normalizeMac(mac).orEmpty(),
                     name = name,
                 ),
             )
