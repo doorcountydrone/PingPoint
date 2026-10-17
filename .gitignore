@@ -21,4 +21,5 @@ local.properties
 .cxx/
 *.jks
 *.keystore
+keystore.properties
 release-assets/
